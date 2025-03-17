@@ -11,4 +11,46 @@ spec:
     solvers:
     - http01:
         ingress:
-          ingressClassName: nginx
+          ingressClassName: ingress-nginx-controller
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: my-app
+  clusterIP: 10.109.0.2
+  ports:
+    - name: podinfo
+      protocol: TCP
+      port: 80
+      targetPort: 9898
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    # add an annotation indicating the issuer to use.
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  name: my-ingress
+spec:
+  rules:
+  - host: podinfo.k8s.schoeppi5.de
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: my-clusterip-service
+            port:
+              number: 80
+  tls: # < placing a host in the TLS config will determine what ends up in the cert's subjectAltNames
+  - hosts:
+    - podinfo.k8s.schoeppi5.de
+    secretName: letsencrypt-staging-key # < cert-manager will store the created certificate in this secret.
